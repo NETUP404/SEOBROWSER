@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO Browser</title>
+    <style>
+       h1 {
+    color: #0056b3;
+    text-align: center;
+}
+#seo-browser {
+    max-width: 100%;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+h2, h3 {
+    text-align: center;
+    color: #0056b3;
+}
+input[type="url"], button {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border: 1px solid #0056b3;
+    border-radius: 5px;
+}
+input[type="url"] {
+    font-size: 16px;
+}
+button {
+    background-color: #0056b3;
+    color: white;
+    cursor: pointer;
+}
+button:hover {
+    background-color: #003d80;
+}
+.results {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+}
+.result-item {
+    flex: 1 1 20%;
+    margin-bottom: 10px;
+    position: relative;
+}
+.result-item-large {
+    flex: 1 1 100%;
+    margin-bottom: 10px;
+    position: relative;
+}
+.result-item span.correct {
+    color: green;
+}
+.result-item span.incorrect {
+    color: red;
+}
+.result-item span.neutral {
+    color: gray;
+}
+.result-item:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #fff;
+    border: 1px solid #ccc;
+    padding: 5px;
+    border-radius: 5px;
+    white-space: nowrap;
+    z-index: 1;
+}
+.seo-content {
+    width: 100%;
+    white-space: pre-wrap;
+    background-color: #f0f0f0;
+    padding: 10px;
+    border-radius: 5px;
+    overflow-x: auto;
+    margin-top: 20px;
+    border: 2px solid #0056b3;
+}
+.seo-content h1 {
+    color: blue;
+}
+.seo-content h2 {
+    color: green;
+}
+.seo-content img, .seo-content *[style*="background"] {
+    display: block;
+    text-align: center;
+    line-height: 100px;
+    font-size: 14px;
+    color: red;
+}
+.google-preview {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-top: 20px;
+    border-radius: 5px;
+    background-color: #fff;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+#progress-bar {
+    width: 100%;
+    background-color: #ccc;
+    margin-top: 20px;
+    display: none;
+}
+#progress-bar div {
+    width: 0;
+    height: 30px;
+    background-color: #0056b3;
+    text-align: center;
+    line-height: 30px;
+    color: white;
+}
+.recommendations-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+.recommendations-table th, .recommendations-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+}
+.recommendations-table th {
+    background-color: #f2f2f2;
+    color: #0056b3;
+}
+.chart-container {
+    width: 100%;
+    height: 400px;
+    margin-top: 20px;
+}
+    </style>
+
+  <!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SEO Browser</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div id="seo-browser">
+        <input type="url" id="urlInput" placeholder="Introduce una URL" required>
+        <button onclick="analyzeURL()">Analizar</button>
+        <div id="progress-bar"><div></div></div>
+        <div class="results-with-chart">
+            <div class="results" id="results">
+                <div class="result-item-large" data-tooltip="Longitud recomendada: 50-60 caracteres. Un título en este rango es conciso y tiene mayor probabilidad de ser mostrado completo en los resultados de búsqueda."><strong>Título:</strong> <span id="pageTitle"></span> (<span id="titleLength">0</span> caracteres) <span class="icon" id="titleLengthStatus"></span></div>
+                <div class="result-item-large" data-tooltip="Longitud recomendada: 120-160 caracteres. Una descripción en este rango es lo suficientemente descriptiva y atractiva para mejorar la tasa de clics."><strong>Meta Descripción:</strong> <span id="metaDescription"></span> (<span id="metaDescriptionLength">0</span> caracteres) <span class="icon" id="metaDescriptionStatus"></span></div>
+                <div class="result-item" data-tooltip="12 o superior es correcto. Tener más enlaces internos ayuda a distribuir el link juice y facilita la navegación de los usuarios."><strong>Enlaces internos:</strong> <span id="internalLinksCount">0</span> <span class="icon" id="internalLinksStatus"></span></div>
+                <div class="result-item" data-tooltip="2 o superior es correcto. Enlaces externos a sitios de alta autoridad pueden mejorar la relevancia y confiabilidad de tu contenido."><strong>Enlaces externos:</strong> <span id="externalLinksCount">0</span> <span class="icon" id="externalLinksStatus"></span></div>
+                <div class="result-item" data-tooltip="1300 o superior es correcto. Un conteo de palabras más alto suele indicar contenido más detallado y valioso."><strong>Palabras:</strong> <span id="wordCount">0</span> <span class="icon" id="wordCountStatus"></span></div>
+                <div class="result-item" data-tooltip="Indiferente"><strong>Caracteres:</strong> <span id="charCount">0</span> <span class="icon neutral">↔️</span></div>
+                <div class="result-item" data-tooltip="3 o superior es correcto. Tener más imágenes con texto alternativo mejora la accesibilidad y SEO de la página."><strong>Imágenes:</strong> <span id="imageCount">0</span> <span class="icon" id="imageCountStatus"></span></div>
+                <div class="result-item" data-tooltip="2 o superior es correcto. Asegúrate de que todas las imágenes tengan texto alternativo para mejorar la accesibilidad y SEO."><strong>Imágenes con alt:</strong> <span id="imageAltCount">0</span> <span class="icon" id="imageAltStatus"></span></div>
+                <div class="result-item" data-tooltip="1 o superior es correcto. Los datos estructurados ayudan a los motores de búsqueda a entender mejor tu contenido."><strong>Datos Estructurados:</strong> <span id="structuredDataCount">0</span> <span class="icon" id="structuredDataStatus"></span></div>
+                <div class="result-item" data-tooltip="Debe ser 1. Solo debe haber un encabezado H1 por página para evitar confusión en los motores de búsqueda."><strong>H1:</strong> <span id="h1Count">0</span> <span class="icon" id="h1Status"></span></div>
+                <div class="result-item" data-tooltip="1 o superior es correcto. Los encabezados H2 son importantes para la estructura y jerarquía del contenido."><strong>H2:</strong> <span id="h2Count">0</span> <span class="icon" id="h2Status"></span></div>
+                <div class="result-item" data-tooltip="1 o superior es correcto. Los encabezados H3 ayudan a subdividir el contenido para una mejor organización y legibilidad."><strong>H3:</strong> <span id="h3Count">0</span> <span class="icon" id="h3Status"></span></div>
+                <div class="result-item" data-tooltip="Indiferente"><strong>H4:</strong> <span id="h4Count">0</span> <span class="icon neutral">↔️</span></div>
+                <div class="result-item" data-tooltip="Indiferente"><strong>H5:</strong> <span id="h5Count">0</span> <span class="icon neutral">↔️</span></div>
+                <div class="result-item-large"><strong>Tiempo de Respuesta:</strong> <span id="responseTime">0 ms</span></div>
+            </div>
+            <div class="chart-container">
+                <canvas id="scoreChart"></canvas>
+                <div id="scoreNote"></div>
+            </div>
+        </div>
+        <h3>Schemas</h3>
+        <div class="result-item-large"><pre id="schemas"></pre></div>
+        <h2>Previsualización URL</h2>
+        <iframe id="urlPreview" src="" width="100%" height="500px"></iframe>
+        <button onclick="saveReport()">Guardar Reporte</button>
+        <div class="seo-content" id="seoContent"></div>
+        <h2>Recomendaciones</h2>
+        <table class="recommendations-table" id="recommendationsTable">
+            <thead>
+                <tr>
+                    <th>Aspecto</th>
+                    <th>Resultado</th>
+                    <th>Estado</th>
+                    <th>Recomendación</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Las filas se actualizarán dinámicamente -->
+            </tbody>
+        </table>
+    </div>
+    <script>
+        async function analyzeURL() {
+            const url = document.getElementById('urlInput').value;
+            if (!url) {
+                alert('Por favor, introduce una URL válida.');
+                return;
+            }
+
+            showProgressBar();
+
+            try {
+                const start = performance.now();
+                const response = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url));
+                const data = await response.json();
+                const htmlContent = data.contents;
+                const end = performance.now();
+                const responseTime = end - start;
+
+                document.getElementById('responseTime').textContent = responseTime.toFixed(2) + ' ms';
+
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlContent, 'text/html');
+
+                const title = doc.querySelector('title') ? doc.querySelector('title').innerText : 'Sin título';
+                const metaDescription = doc.querySelector('meta[name="description"]') ? doc.querySelector('meta[name="description"]').getAttribute('content') : 'No description';
+                const h1Tags = doc.querySelectorAll('h1');
+                const h2Tags = doc.querySelectorAll('h2');
+                const h3Tags = doc.querySelectorAll('h3');
+                const h4Tags = doc.querySelectorAll('h4');
+                const h5Tags = doc.querySelectorAll('h5');
+                const links = doc.querySelectorAll('a');
+                const images = doc.querySelectorAll('img');
+                const structuredData = doc.querySelectorAll('script[type="application/ld+json"]');
+                const words = doc.body.innerText.match(/\b\w+\b/g);
+                const visibleText = doc.body.innerText.replace(/\s+/g, ' ').trim();
+
+                let internalLinks = 0;
+                let externalLinks = 0;
+                let imagesWithAlt = 0;
+                const currentDomain = new URL(url).origin;
+                links.forEach(link => {
+                    if (link.href.startsWith(currentDomain)) {
+                        internalLinks++;
+                    } else {
+                        externalLinks++;
+                    }
+                });
+
+                images.forEach(image => {
+                    if (image.hasAttribute('alt')) {
+                        imagesWithAlt++;
+                    }
+                });
+
+                document.getElementById('pageTitle').textContent = title;
+                document.getElementById('metaDescription').textContent = metaDescription;
+                document.getElementById('titleLength').textContent = title.length;
+                document.getElementById('metaDescriptionLength').textContent = metaDescription.length;
+                document.getElementById('internalLinksCount').textContent = internalLinks;
+                document.getElementById('externalLinksCount').textContent = externalLinks;
+                document.getElementById('wordCount').textContent = words ? words.length : 0;
+                document.getElementById('charCount').textContent = visibleText.length;
+                document.getElementById('imageCount').textContent = images.length;
+                document.getElementById('imageAltCount').textContent = imagesWithAlt;
+                document.getElementById('structuredDataCount').textContent = structuredData.length;
+                document.getElementById('h1Count').textContent = h1Tags.length;
+                document.getElementById('h2Count').textContent = h2Tags.length;
+                document.getElementById('h3Count').textContent = h3Tags.length;
+                document.getElementById('h4Count').textContent = h4Tags.length;
+                document.getElementById('h5Count').textContent = h5Tags.length;
+                
+                const schemas = structuredData.length > 0 ? JSON.stringify(JSON.parse(structuredData[0].innerText), null, 2) : 'No schema found';
+                document.getElementById('schemas').textContent = schemas;
+
+                // Set statuses
+                const statusData = [];
+                const icons = {
+                    correct: '✔️',
+                    incorrect: '❌',
+                    neutral: '↔️'
+                };
+                statusData.push({
+                    aspect: 'Título',
+                    result: title.length,
+                    status: (title.length >= 50 && title.length <= 60) ? icons.correct : icons.incorrect,
+                    recommendation: 'Longitud recomendada: 50-60 caracteres.'
+                });
+                statusData.push({
+                    aspect: 'Meta Descripción',
+                    result: metaDescription.length,
+                    status: (metaDescription.length >= 120 && metaDescription.length <= 160) ? icons.correct : icons.incorrect,
+                    recommendation: 'Longitud recomendada: 120-160 caracteres.'
+                });
+                statusData.push({
+                    aspect: 'Enlaces internos',
+                    result: internalLinks,
+                    status: internalLinks >= 12 ? icons.correct : icons.incorrect,
+                    recommendation: '12 o superior es correcto.'
+                });
+                statusData.push({
+                    aspect: 'Enlaces externos',
+                    result: externalLinks,
+                    status: externalLinks >= 2 ? icons.correct : icons.incorrect,
+                    recommendation: '2 o superior es correcto.'
+                });
+                statusData.push({
+                    aspect: 'Palabras',
+                    result: words ? words.length : 0,
+                    status: words && words.length >= 1300 ? icons.correct : icons.incorrect,
+                    recommendation: '1300 o superior es correcto.'
+                });
+                statusData.push({
+                    aspect: 'Imágenes',
+                    result: images.length,
+                    status: images.length >= 3 ? icons.correct : icons.incorrect,
+                    recommendation: '3 o superior es correcto.'
+                });
+                statusData.push({
+                    aspect: 'Imágenes con alt',
+                    result: imagesWithAlt,
+                    status: imagesWithAlt >= 2 ? icons.correct : icons.incorrect,
+                    recommendation: '2 o superior es correcto.'
+                });
+                statusData.push({
+                    aspect: 'Datos Estructurados',
+                    result: structuredData.length,
+                    status: structuredData.length >= 1 ? icons.correct : icons.incorrect,
+                    recommendation: '1 o superior es correcto.'
+                });
+                statusData.push({
+                    aspect: 'H1',
+                    result: h1Tags.length,
+                    status: h1Tags.length === 1 ? icons.correct : icons.incorrect,
+                    recommendation: 'Debe ser 1.'
+                });
+                statusData.push({
+                    aspect: 'H2',
+                    result: h2Tags.length,
+                    status: h2Tags.length >= 1 ? icons.correct : icons.incorrect,
+                    recommendation: '1 o superior es correcto.'
+                });
+                statusData.push({
+                    aspect: 'H3',
+                    result: h3Tags.length,
+                    status: h3Tags.length >= 1 ? icons.correct : icons.incorrect,
+                    recommendation: '1 o superior es correcto.'
+                });
+
+                // Update the status icons
+                document.getElementById('titleLengthStatus').textContent = statusData[0].status;
+                document.getElementById('metaDescriptionStatus').textContent = statusData[1].status;
+                document.getElementById('internalLinksStatus').textContent = statusData[2].status;
+                document.getElementById('externalLinksStatus').textContent = statusData[3].status;
+                document.getElementById('wordCountStatus').textContent = statusData[4].status;
+                document.getElementById('imageCountStatus').textContent = statusData[5].status;
+                document.getElementById('imageAltStatus').textContent = statusData[6].status;
+                document.getElementById('structuredDataStatus').textContent = statusData[7].status;
+                document.getElementById('h1Status').textContent = statusData[8].status;
+                document.getElementById('h2Status').textContent = statusData[9].status;
+                document.getElementById('h3Status').textContent = statusData[10].status;
+
+                updateRecommendationsTable(statusData);
+                createScoreChart(statusData);
+
+                // Update URL preview
+                document.getElementById('urlPreview').src = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+
+                hideProgressBar();
+            } catch (error) {
+                console.error('Error al analizar la URL:', error);
+                alert('Hubo un error al analizar la URL. Por favor, intenta nuevamente.');
+                hideProgressBar();
+            }
+        }
+
+        function showProgressBar() {
+            const progressBar = document.getElementById('progress-bar');
+            const progressBarInner = progressBar.querySelector('div');
+            progressBar.style.display = 'block';
+            let width = 1;
+            const interval = setInterval(() => {
+                if (width >= 100) {
+                    clearInterval(interval);
+                } else {
+                    width++;
+                    progressBarInner.style.width = width + '%';
+                    progressBarInner.textContent = width + '%';
+                }
+            }, 100);
+        }
+
+        function hideProgressBar() {
+            const progressBar = document.getElementById('progress-bar');
+            progressBar.style.display = 'none';
+            progressBar.querySelector('div').style.width = '0';
+        }
+
+        function updateRecommendationsTable(data) {
+            const tableBody = document.querySelector('#recommendationsTable tbody');
+            tableBody.innerHTML = '';
+            
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                const aspectCell = document.createElement('td');
+                const resultCell = document.createElement('td');
+                const statusCell = document.createElement('td');
+                const recommendationCell = document.createElement('td');
+
+                aspectCell.textContent = item.aspect;
+                resultCell.textContent = item.result;
+                statusCell.textContent = item.status;
+                recommendationCell.textContent = item.recommendation;
+
+                row.appendChild(aspectCell);
+                row.appendChild(resultCell);
+                row.appendChild(statusCell);
+                row.appendChild(recommendationCell);
+
+                tableBody.appendChild(row);
+            });
+        }
+
+        function createScoreChart(data) {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            const correctCount = data.filter(item => item.status === '✔️').length;
+            const incorrectCount = data.filter(item => item.status === '❌').length;
+            const neutralCount = data.filter(item => item.status === '↔️').length;
+
+            const total = correctCount + incorrectCount + neutralCount;
+            const percentage = (correctCount / total) * 100;
+            const score = (percentage / 10).toFixed(1);
+
+            document.getElementById('scoreNote').innerHTML = `<h3>Nota: ${score}/10</h3>`;
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Correcto', 'Incorrecto', 'Neutral'],
+                    datasets: [{
+                        data: [correctCount, incorrectCount, neutralCount],
+                        backgroundColor: ['#28a745', '#dc3545', '#6c757d']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        title: {
+                            display: true,
+                            text: 'Puntuación de la Página'
+                        }
+                    }
+                }
+            });
+        }
+
+        async function saveReport() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // First page content
+            const resultsElement = document.getElementById('results');
+            const recommendationsTableElement = document.getElementById('recommendationsTable');
+            const scoreChartElement = document.getElementById('scoreChart');
+
+            // Convert results to canvas and add to PDF
+            const resultsCanvas = await html2canvas(resultsElement, { scale: 2 });
+            const resultsImg = resultsCanvas.toDataURL('image/png');
+            doc.addImage(resultsImg, 'PNG', 10, 10, 190, 80);
+
+            // Convert recommendations table to canvas and add to PDF
+            const recommendationsCanvas = await html2canvas(recommendationsTableElement, { scale: 2 });
+            const recommendationsImg = recommendationsCanvas.toDataURL('image/png');
+            doc.addImage(recommendationsImg, 'PNG', 10, 100, 190, 80);
+
+            // Convert score chart to canvas and add to PDF
+            const scoreChartCanvas = await html2canvas(scoreChartElement, { scale: 2 });
+            const scoreChartImg = scoreChartCanvas.toDataURL('image/png');
+            doc.addImage(scoreChartImg, 'PNG', 10, 190, 190, 80);
+            
+            // Add new page for schema
+            doc.addPage();
+
+            // Add schema title
+            doc.setFontSize(16);
+            doc.text('Schema', 10, 20);
+
+            // Convert schema to canvas and add to PDF
+            const schemaElement = document.getElementById('schemas');
+            const schemaCanvas = await html2canvas(schemaElement, { scale: 2 });
+            const schemaImg = schemaCanvas.toDataURL('image/png');
+            doc.addImage(schemaImg, 'PNG', 10, 30, 190, 260);
+
+            // Save the PDF
+            doc.save('seo_report.pdf');
+        }
+    </script>
